@@ -16,10 +16,10 @@ export const intro = {
   location: "Based in the United States, working remotely",
   cta: {
     label: "Get in touch",
-    href: "mailto:timpaulholmes@gmail.com",
+    href: "mailto:tim@gmail.com",
   },
   links: [
-    { label: "GitHub", href: "https://github.com/tim-holmes" },
+    { label: "GitHub", href: "https://github.com/timh-dev" },
   ],
 };
 
@@ -131,5 +131,5 @@ export const connect = {
   title: "Let's Connect",
   description:
     "I'm interested in senior engineering roles, product-focused platform work, and consulting engagements where strong frontend execution needs to connect cleanly with backend, data, or ML systems.",
-  email: "timpaulholmes@gmail.com",
+  email: "tim@gmail.com",
 };
