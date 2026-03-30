@@ -28,6 +28,16 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Create env file
+        run: |
+          cat > .env <<EOF
+          VITE_DISPLAY_NAME="${{ vars.VITE_DISPLAY_NAME }}"
+          VITE_INITIALS="${{ vars.VITE_INITIALS }}"
+          VITE_EMAIL="${{ vars.VITE_EMAIL }}"
+          VITE_GITHUB_URL="${{ vars.VITE_GITHUB_URL }}"
+          VITE_ROLE="${{ vars.VITE_ROLE }}"
+          EOF
+
       - name: Install dependencies
         run: make install
 

@@ -10,6 +10,26 @@ make install
 make dev
 ```
 
+## GitHub Actions env setup
+
+For the Pages workflow, define these repository variables in GitHub under `Settings > Secrets and variables > Actions > Variables`:
+
+- `VITE_DISPLAY_NAME`
+- `VITE_INITIALS`
+- `VITE_EMAIL`
+- `VITE_GITHUB_URL`
+- `VITE_ROLE`
+
+The workflow writes those values into a temporary `.env` file before building.
+
+If you already have a local `.env`, you can sync those values to GitHub with:
+
+```bash
+make gh-sync-vars
+```
+
+This requires `gh` to be installed and authenticated for the repository.
+
 ## Quality and build
 
 ```bash
