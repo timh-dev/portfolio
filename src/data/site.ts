@@ -1,3 +1,12 @@
+const displayName = import.meta.env.VITE_DISPLAY_NAME || "Your Name";
+const initials = import.meta.env.VITE_INITIALS || "YN";
+const email = import.meta.env.VITE_EMAIL || "you@example.com";
+const githubUrl =
+  import.meta.env.VITE_GITHUB_URL || "https://github.com/your-handle";
+const role =
+  import.meta.env.VITE_ROLE ||
+  "Lead Full-Stack Developer · ML Engineer · Geospatial Systems Builder";
+
 export const navItems = [
   { label: "Home", href: "#home" },
   { label: "About", href: "#experience" },
@@ -6,20 +15,21 @@ export const navItems = [
 ] as const;
 
 export const intro = {
-  name: "Tim Holmes",
-  role: "Lead Full-Stack Developer · ML Engineer · Geospatial Systems Builder",
+  name: displayName,
+  initials,
+  role,
   summary: [
-    "I'm Tim Holmes, a software engineer focused on full-stack product development, cloud systems, and applied machine learning. I have 8+ years of experience building production applications with React, TypeScript, Python, and AWS across wildfire operations and financial services.",
+    `I'm ${displayName}, a software engineer focused on full-stack product development, cloud systems, and applied machine learning. I have 8+ years of experience building production applications with React, TypeScript, Python, and AWS across wildfire operations and financial services.`,
     "I've built end-to-end products that span frontend interfaces, backend services, data pipelines, and infrastructure. My recent work has centered on geospatial tools, operational dashboards, and ML-powered decision systems that need to perform reliably under real-world pressure.",
     "Currently, I'm looking for new tech roles and selective freelance work. I am especially interested in projects where product thinking, strong engineering execution, and modern frontend development need to come together cleanly.",
   ],
   location: "Based in the United States, working remotely",
   cta: {
     label: "Get in touch",
-    href: "mailto:tim@gmail.com",
+    href: `mailto:${email}`,
   },
   links: [
-    { label: "GitHub", href: "https://github.com/timh-dev" },
+    { label: "GitHub", href: githubUrl },
   ],
 };
 
@@ -131,5 +141,5 @@ export const connect = {
   title: "Let's Connect",
   description:
     "I'm interested in senior engineering roles, product-focused platform work, and consulting engagements where strong frontend execution needs to connect cleanly with backend, data, or ML systems.",
-  email: "tim@gmail.com",
+  email,
 };

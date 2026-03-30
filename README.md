@@ -5,6 +5,7 @@ Single-page portfolio site built with React, Vite, Tailwind CSS, and shadcn-styl
 ## Local development
 
 ```bash
+cp .env.template .env
 make install
 make dev
 ```
@@ -20,3 +21,4 @@ make preview
 ## Content
 
 Update portfolio content in `src/data/site.ts`.
+Set personal values in `.env` using `.env.template` as the starting point.

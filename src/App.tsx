@@ -45,7 +45,7 @@ function App() {
             className="text-[1.65rem] font-semibold leading-none tracking-[-0.08em] text-black"
             href="#home"
           >
-            TH
+            {intro.initials}
           </a>
           <nav className="hidden items-center gap-1 rounded-full bg-[#f1f0ec] p-1 sm:flex">
             {navItems.map((item, index) => (
