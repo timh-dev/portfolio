@@ -1,12 +1,19 @@
+import { useEffect, useMemo, useState } from "react";
 import {
+  ArrowLeft,
+  ArrowRight,
   BriefcaseBusiness,
   Github,
+  Image as ImageIcon,
   Linkedin,
   Mail,
   NotebookPen,
+  Sparkles,
+  Video,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import type { ProjectAsset, ProjectTab } from "@/data/site";
 import { caseStudies, experience, intro, navItems, writing } from "@/data/site";
 
 const socialIcons = {
@@ -15,31 +22,116 @@ const socialIcons = {
   GitHub: Github,
 } as const;
 
-const studyVisuals = [
-  {
-    frame:
-      "bg-[radial-gradient(circle_at_78%_26%,rgba(255,255,255,0.86),transparent_12%),radial-gradient(circle_at_86%_56%,rgba(211,221,255,0.32),transparent_18%),linear-gradient(180deg,#2a2a2a_0%,#4f4f4f_6%,#0b0d16_18%,#070812_100%)]",
-    screen:
-      "bg-[radial-gradient(circle_at_72%_42%,rgba(244,247,255,0.92),transparent_12%),radial-gradient(circle_at_84%_56%,rgba(188,201,235,0.34),transparent_16%),linear-gradient(135deg,#03050e_0%,#0b1021_42%,#1d2847_72%,#0e1224_100%)]",
-  },
-  {
-    frame:
-      "bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.4),transparent_20%),linear-gradient(180deg,#c9c5be_0%,#9e9486_24%,#ece7df_100%)]",
-    screen:
-      "bg-[radial-gradient(circle_at_20%_22%,rgba(255,214,153,0.28),transparent_16%),linear-gradient(135deg,#151b24_0%,#263448_46%,#67798b_100%)]",
-  },
-  {
-    frame:
-      "bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.28),transparent_22%),linear-gradient(180deg,#b8b8b8_0%,#8d8d8d_16%,#d8d3cc_100%)]",
-    screen:
-      "bg-[radial-gradient(circle_at_76%_22%,rgba(255,255,255,0.22),transparent_14%),linear-gradient(135deg,#241913_0%,#563c2f_54%,#9b7859_100%)]",
-  },
-] as const;
+const PROJECT_PREFIX = "/projects/";
+
+function getPathname() {
+  return window.location.pathname.replace(/\/+$/, "") || "/";
+}
+
+function getProjectFromPath() {
+  const pathname = getPathname();
+  if (!pathname.startsWith(PROJECT_PREFIX)) {
+    return null;
+  }
+
+  const slug = pathname.slice(PROJECT_PREFIX.length);
+  return caseStudies.find((study) => study.slug === slug) ?? null;
+}
 
 function App() {
+  const [pathname, setPathname] = useState(() => getPathname());
+  const [activeTab, setActiveTab] = useState<ProjectTab["id"]>("backend");
+  const [activeSection, setActiveSection] = useState(1);
+  const [scrollProgress, setScrollProgress] = useState(0);
+
+  useEffect(() => {
+    const onLocationChange = () => {
+      setPathname(getPathname());
+    };
+
+    window.addEventListener("popstate", onLocationChange);
+    return () => window.removeEventListener("popstate", onLocationChange);
+  }, []);
+
+  const activeProject = useMemo(() => getProjectFromPath(), [pathname]);
+
+  useEffect(() => {
+    setActiveTab("backend");
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!activeProject) {
+      return;
+    }
+
+    const ids = activeProject.tabs
+      .find((tab) => tab.id === activeTab)
+      ?.sections.map((_, index) => `section-${index + 1}`);
+
+    if (!ids?.length) {
+      return;
+    }
+
+    const onScroll = () => {
+      const doc = document.documentElement;
+      const maxScroll = doc.scrollHeight - window.innerHeight;
+      const nextProgress = maxScroll > 0 ? window.scrollY / maxScroll : 0;
+      setScrollProgress(Math.min(1, Math.max(0, nextProgress)));
+
+      const marker = window.innerHeight * 0.28;
+      let nextActive = 1;
+
+      ids.forEach((id, index) => {
+        const element = document.getElementById(id);
+        if (!element) {
+          return;
+        }
+
+        const top = element.getBoundingClientRect().top;
+        if (top <= marker) {
+          nextActive = index + 1;
+        }
+      });
+
+      setActiveSection(nextActive);
+    };
+
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, [activeProject, activeTab, pathname]);
+
+  const navigate = (nextPath: string) => {
+    window.history.pushState({}, "", nextPath);
+    setPathname(getPathname());
+  };
+
+  if (activeProject) {
+    return (
+      <ProjectArticlePage
+        activeProject={activeProject}
+        activeTab={activeTab}
+        activeSection={activeSection}
+        onBack={() => navigate("/#case-studies")}
+        onTabChange={setActiveTab}
+        scrollProgress={scrollProgress}
+      />
+    );
+  }
+
+  return <HomePage onOpenProject={(slug) => navigate(`${PROJECT_PREFIX}${slug}`)} />;
+}
+
+function HomePage({ onOpenProject }: { onOpenProject: (slug: string) => void }) {
+  const featuredProject = caseStudies[0];
+
   return (
-    <div className="min-h-screen bg-[#f3f4f1] text-[#20242c]">
-      <div className="mx-auto max-w-[33rem] px-6 pb-24 pt-6 sm:max-w-[38rem] sm:px-8 lg:max-w-[40rem]">
+    <div className="min-h-screen bg-[linear-gradient(180deg,#f6f3eb_0%,#f3f4f1_28%,#eef1ec_100%)] text-[#20242c]">
+      <div className="mx-auto max-w-[33rem] px-6 pb-24 pt-6 sm:max-w-[42rem] sm:px-8 lg:max-w-[54rem]">
         <header className="mb-14 flex items-center justify-between">
           <a
             className="text-[1.65rem] font-semibold leading-none tracking-[-0.08em] text-black"
@@ -47,7 +139,7 @@ function App() {
           >
             {intro.initials}
           </a>
-          <nav className="hidden items-center gap-1 rounded-full bg-[#f1f0ec] p-1 sm:flex">
+          <nav className="hidden items-center gap-1 rounded-full border border-white/70 bg-[#f7f4ee]/90 p-1 shadow-[0_8px_30px_rgba(90,75,42,0.08)] backdrop-blur sm:flex">
             {navItems.map((item, index) => (
               <a
                 key={item.href}
@@ -148,61 +240,82 @@ function App() {
           </section>
 
           <section id="case-studies" className="space-y-10">
-            <h2 className="text-[1.9rem] font-medium tracking-[-0.03em]">
-              Case Studies
-            </h2>
-            <div className="space-y-14">
-              {caseStudies.map((study, index) => (
-                <article key={study.title} className="space-y-5">
-                  <div
-                    className={`overflow-hidden rounded-[1.65rem] p-4 shadow-[0_12px_32px_rgba(0,0,0,0.05)] ${studyVisuals[index].frame}`}
-                  >
-                    <div
-                      className={`relative h-[16rem] overflow-hidden rounded-[1.2rem] border border-white/10 ${studyVisuals[index].screen} sm:h-[19rem]`}
-                    >
-                      <div className="absolute inset-x-0 top-0 h-12 border-b border-white/10 bg-black/15" />
-                      <div className="absolute left-5 top-4 h-2.5 w-2.5 rounded-full bg-white/60" />
-                      <div className="absolute left-1/2 top-4 h-6 w-44 -translate-x-1/2 rounded-full border border-white/10 bg-black/20" />
-                      <div className="absolute right-5 top-3.5 rounded-full border border-white/10 bg-black/25 px-4 py-1.5 text-[0.65rem] text-white/90">
-                        View project
-                      </div>
+            <div className="space-y-3">
+              <h2 className="text-[1.9rem] font-medium tracking-[-0.03em]">
+                Projects
+              </h2>
+              <p className="max-w-[44rem] text-[0.98rem] leading-[1.7] text-[#68707d]">
+                Each card opens into a dedicated write-up. The article page is
+                where the architecture, product thinking, and media live.
+              </p>
+            </div>
 
-                      <div className="absolute left-8 top-20 max-w-[14rem] text-white">
-                        <div className="mb-5 inline-flex rounded-full border border-white/15 bg-black/20 px-3 py-1 text-[0.62rem] font-medium text-white/85">
-                          Selected case study
-                        </div>
-                        <h3 className="text-[1.75rem] font-bold leading-[1.02] tracking-[-0.04em]">
-                          {index === 0
-                            ? "Operational software for wildfire response"
-                            : index === 1
-                              ? "ML systems for utility risk scoring"
-                              : "Retirement planning SaaS platform"}
+            <button
+              type="button"
+              onClick={() => onOpenProject(featuredProject.slug)}
+              className="group block w-full overflow-hidden rounded-[2rem] border border-[#d8ddd3] bg-[#fbfaf6] text-left shadow-[0_24px_70px_rgba(49,54,44,0.08)] transition hover:-translate-y-1 hover:shadow-[0_30px_90px_rgba(49,54,44,0.12)]"
+            >
+              <div className="grid gap-0 lg:grid-cols-[1.15fr_0.85fr]">
+                <div className="relative overflow-hidden border-b border-[#e4e8df] bg-[radial-gradient(circle_at_18%_22%,rgba(246,221,172,0.58),transparent_22%),radial-gradient(circle_at_84%_24%,rgba(205,225,255,0.78),transparent_20%),linear-gradient(135deg,#0c1a29_0%,#11253c_34%,#1d4f63_64%,#d4a15f_100%)] p-6 sm:p-8 lg:border-b-0 lg:border-r">
+                  <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0))]" />
+                  <div className="relative space-y-6">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <StatusChip>{featuredProject.status}</StatusChip>
+                      <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-white/86">
+                        Geospatial intelligence
+                      </span>
+                    </div>
+
+                    <div className="max-w-[29rem] space-y-4 text-white">
+                      <div className="space-y-2">
+                        <p className="text-[0.76rem] font-semibold uppercase tracking-[0.22em] text-white/70">
+                          Featured project
+                        </p>
+                        <h3 className="text-[2.4rem] font-bold leading-[0.98] tracking-[-0.05em]">
+                          {featuredProject.title}
                         </h3>
-                        <p className="mt-3 text-[0.82rem] leading-5 text-white/75">
-                          Product, platform, and infrastructure working together
-                          in a single system.
+                        <p className="text-[1rem] text-white/78">
+                          {featuredProject.subtitle}
                         </p>
                       </div>
 
-                      <div className="absolute bottom-6 left-8 rounded-full border border-white/15 bg-black/20 px-4 py-2 text-[0.72rem] text-white">
-                        Read more
-                      </div>
+                      <p className="text-[0.97rem] leading-[1.7] text-white/82">
+                        {featuredProject.description}
+                      </p>
+                    </div>
 
-                      <div className="absolute bottom-0 right-0 h-[88%] w-[48%] rounded-tl-[7rem] bg-[radial-gradient(circle_at_45%_24%,rgba(255,255,255,0.85),rgba(255,255,255,0.15)_20%,transparent_44%),radial-gradient(circle_at_62%_54%,rgba(255,255,255,0.4),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.16),rgba(255,255,255,0.02))] opacity-90" />
+                    <div className="flex items-center gap-3 text-[0.9rem] font-semibold text-white">
+                      <span>Open case study</span>
+                      <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
                     </div>
                   </div>
+                </div>
 
-                  <div className="space-y-3">
-                    <h3 className="text-[1.42rem] font-medium tracking-[-0.03em] text-[#242832]">
-                      {study.title}
-                    </h3>
-                    <p className="text-[0.98rem] leading-[1.65] text-[#68707d]">
-                      {study.description}
-                    </p>
+                <div className="bg-[linear-gradient(180deg,#f8f4ea_0%,#f3efe5_100%)] p-6 sm:p-8">
+                  <div className="space-y-5">
+                    <div className="space-y-2">
+                      <p className="text-[0.76rem] font-semibold uppercase tracking-[0.22em] text-[#7a6b53]">
+                        Technical stack
+                      </p>
+                      <p className="text-[0.96rem] leading-[1.65] text-[#5d615c]">
+                        Product UI, backend APIs, data pipelines, geospatial
+                        modeling, and ML infrastructure in one system.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2.5">
+                      {featuredProject.stack.map((item) => (
+                        <span
+                          key={item}
+                          className="rounded-full border border-[#dccfb7] bg-white/80 px-3 py-1.5 text-[0.82rem] font-medium text-[#473b28]"
+                        >
+                          {item}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                </article>
-              ))}
-            </div>
+                </div>
+              </div>
+            </button>
           </section>
 
           <section id="writing" className="space-y-9">
@@ -229,6 +342,342 @@ function App() {
         </main>
       </div>
     </div>
+  );
+}
+
+function ProjectArticlePage({
+  activeProject,
+  activeTab,
+  activeSection,
+  onBack,
+  onTabChange,
+  scrollProgress,
+}: {
+  activeProject: (typeof caseStudies)[number];
+  activeTab: ProjectTab["id"];
+  activeSection: number;
+  onBack: () => void;
+  onTabChange: (tab: ProjectTab["id"]) => void;
+  scrollProgress: number;
+}) {
+  const currentTab =
+    activeProject.tabs.find((tab) => tab.id === activeTab) ?? activeProject.tabs[0];
+
+  return (
+    <div className="min-h-screen bg-[linear-gradient(180deg,#f4f0e5_0%,#f8f6f1_22%,#fbfbf8_100%)] text-[#1f2937]">
+      <div className="mx-auto max-w-[88rem] px-6 py-8 sm:px-8 lg:px-10">
+        <div className="mb-10 flex items-center justify-between">
+          <div />
+          <StatusChip>{activeProject.status}</StatusChip>
+        </div>
+
+        <article className="relative xl:pl-72">
+          <aside className="hidden xl:block">
+            <div className="fixed left-8 top-8 z-20 w-52">
+              <div className="space-y-8">
+                <button
+                  type="button"
+                  onClick={onBack}
+                  className="inline-flex items-center gap-2 rounded-full border border-[#ddd6c6] bg-white/92 px-4 py-2 text-[0.9rem] font-medium text-[#334155] shadow-[0_6px_20px_rgba(15,23,42,0.05)] backdrop-blur transition hover:border-[#cdbf9e] hover:text-black"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Back to projects
+                </button>
+
+                <div className="h-px w-36 bg-[#ded7c8]" />
+
+                <div className="space-y-3">
+                  <p className="text-[0.75rem] font-semibold uppercase tracking-[0.22em] text-[#8a7652]">
+                    Reading progress
+                  </p>
+                  <div className="relative h-40 w-[2px] bg-[#e6dfd0]">
+                    <div
+                      className="absolute left-0 top-0 w-full bg-[#1f2937] transition-[height] duration-300"
+                      style={{ height: `${Math.max(6, scrollProgress * 100)}%` }}
+                    />
+                  </div>
+                  <p className="text-[0.9rem] text-[#667085]">
+                    {Math.round(scrollProgress * 100)}% through
+                  </p>
+                </div>
+
+                <div className="h-px w-36 bg-[#ded7c8]" />
+
+                <div className="space-y-3">
+                  <p className="text-[0.75rem] font-semibold uppercase tracking-[0.22em] text-[#8a7652]">
+                    In this article
+                  </p>
+                  <div className="space-y-4">
+                    {currentTab.sections.map((section, index) => {
+                      const isActive = activeSection === index + 1;
+
+                      return (
+                        <a
+                          key={section.title}
+                          href={`#section-${index + 1}`}
+                          className="group flex items-start gap-3"
+                        >
+                          <span
+                            className={`mt-1 block h-2.5 w-2.5 rounded-full transition ${
+                              isActive ? "bg-[#1f2937]" : "bg-[#d7cfbe]"
+                            }`}
+                          />
+                          <span
+                            className={`text-[0.92rem] leading-[1.45] transition ${
+                              isActive
+                                ? "text-[#1f2937]"
+                                : "text-[#6b7280] group-hover:text-[#1f2937]"
+                            }`}
+                          >
+                            {section.title}
+                          </span>
+                        </a>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="pointer-events-none fixed bottom-0 left-[15.5rem] top-0 w-px bg-[linear-gradient(180deg,rgba(222,215,200,0),rgba(222,215,200,0.95)_12%,rgba(222,215,200,0.95)_88%,rgba(222,215,200,0))]" />
+          </aside>
+
+          <div className="min-w-0">
+            <header className="pb-12">
+              <div className="mb-8 max-w-[44rem] space-y-4">
+                <p className="text-[0.78rem] font-semibold uppercase tracking-[0.24em] text-[#8a7652]">
+                  Project case study
+                </p>
+                <h1 className="text-[2.9rem] font-bold leading-[0.92] tracking-[-0.06em] text-[#17212b] sm:text-[4rem]">
+                  {activeProject.title}
+                </h1>
+                <p className="text-[1.14rem] leading-[1.8] text-[#435163]">
+                  {activeProject.subtitle}
+                </p>
+              </div>
+
+              <div className="max-w-[42rem] space-y-5">
+                <p className="text-[1.08rem] leading-[1.95] text-[#3f4a5a]">
+                  {activeProject.description}
+                </p>
+                <p className="text-[1rem] leading-[1.9] text-[#5f6b7a]">
+                  This page is structured as a longform engineering article rather
+                  than a portfolio card. The point is to let a recruiter or
+                  hiring manager read the system progressively, understand the
+                  decisions, and evaluate the work at the right level of depth.
+                </p>
+              </div>
+
+              <div className="mt-8 flex flex-wrap gap-2.5">
+                {activeProject.stack.map((item) => (
+                  <span
+                    key={item}
+                    className="rounded-full border border-[#ddd0b7] bg-[#fbf7ef] px-3 py-1.5 text-[0.82rem] font-medium text-[#56452b]"
+                  >
+                    {item}
+                  </span>
+                ))}
+              </div>
+            </header>
+
+            <div className="mb-14">
+              <div className="inline-flex rounded-full border border-[#e3dccd] bg-[#f7f3ea] p-1">
+                {activeProject.tabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => onTabChange(tab.id)}
+                    className={`rounded-full px-4 py-2 text-[0.88rem] font-semibold transition ${
+                      activeTab === tab.id
+                        ? "bg-[#1d2939] text-white"
+                        : "text-[#667085] hover:text-[#1d2939]"
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mb-14 max-w-[44rem]">
+              <p className="mb-3 text-[0.76rem] font-semibold uppercase tracking-[0.22em] text-[#8a7652]">
+                Abstract
+              </p>
+              <p className="text-[1.04rem] leading-[1.95] text-[#324152]">
+                {currentTab.intro}
+              </p>
+            </div>
+
+            <div className="space-y-20">
+              {currentTab.sections.map((section, index) => (
+                <ArticleSection
+                  key={section.title}
+                  index={index + 1}
+                  section={section}
+                />
+              ))}
+            </div>
+          </div>
+        </article>
+      </div>
+    </div>
+  );
+}
+
+function ArticleSection({
+  index,
+  section,
+}: {
+  index: number;
+  section: ProjectTab["sections"][number];
+}) {
+  return (
+    <section
+      id={`section-${index}`}
+      className="scroll-mt-24"
+    >
+      <div className="max-w-[44rem] space-y-7">
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="text-[0.76rem] font-semibold uppercase tracking-[0.22em] text-[#8a7652]">
+              Section {index}
+            </p>
+            {section.status ? <StatusChip subtle>{section.status}</StatusChip> : null}
+          </div>
+          <h2 className="text-[2rem] font-semibold tracking-[-0.04em] text-[#17212b]">
+            {section.title}
+          </h2>
+          <p className="text-[1.03rem] leading-[1.9] text-[#435163]">
+            {section.description}
+          </p>
+        </div>
+
+        <div className="space-y-6">
+          {section.paragraphs.map((paragraph) => (
+            <p
+              key={paragraph}
+              className="text-[1.02rem] leading-[1.95] text-[#4b5968]"
+            >
+              {paragraph}
+            </p>
+          ))}
+        </div>
+      </div>
+
+      {section.assets?.length ? (
+        <div className="mt-10 space-y-12">
+          {section.assets.map((asset) => (
+            <MediaPlacement key={asset.title} asset={asset} />
+          ))}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function MediaPlacement({ asset }: { asset: ProjectAsset }) {
+  const align = asset.align ?? "center";
+  const isCenter = align === "center";
+  const isLeft = align === "left";
+  const isRight = align === "right";
+
+  return (
+    <div className="space-y-5">
+      {isCenter ? (
+        <div className="mx-auto max-w-[62rem]">
+          <AssetPlaceholder asset={asset} />
+        </div>
+      ) : null}
+
+      {isLeft ? (
+        <div className="mx-auto max-w-[68rem] lg:grid lg:grid-cols-[minmax(0,1.08fr)_minmax(20rem,0.72fr)] lg:items-start lg:gap-12">
+          <div className="min-w-0 lg:-ml-[14%]">
+            <AssetPlaceholder asset={asset} />
+          </div>
+          <div className="min-w-0 lg:pt-10">
+            <MediaText asset={asset} />
+          </div>
+        </div>
+      ) : null}
+
+      {isRight ? (
+        <div className="mx-auto max-w-[68rem] lg:grid lg:grid-cols-[minmax(20rem,0.72fr)_minmax(0,1.08fr)] lg:items-start lg:gap-12">
+          <div className="min-w-0 lg:pt-10">
+            <MediaText asset={asset} />
+          </div>
+          <div className="min-w-0 lg:-mr-[14%]">
+            <AssetPlaceholder asset={asset} />
+          </div>
+        </div>
+      ) : null}
+
+      {asset.bodyBelow ? (
+        <div className="mx-auto max-w-[44rem]">
+          <p className="text-[0.98rem] leading-[1.85] text-[#586576]">
+            {asset.bodyBelow}
+          </p>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function MediaText({ asset }: { asset: ProjectAsset }) {
+  return (
+    <div className="mx-auto mt-4 max-w-[24rem] space-y-2 lg:mt-0">
+      <p className="text-[0.78rem] font-semibold uppercase tracking-[0.22em] text-[#8a7652]">
+        Media note
+      </p>
+      <p className="text-[0.98rem] leading-[1.8] text-[#4b5968]">
+        {asset.sideNote ?? asset.description}
+      </p>
+    </div>
+  );
+}
+
+function AssetPlaceholder({ asset }: { asset: ProjectAsset }) {
+  const Icon =
+    asset.format === "video"
+      ? Video
+      : asset.format === "image"
+        ? ImageIcon
+        : Sparkles;
+
+  return (
+    <div className="relative overflow-hidden rounded-[1.75rem] bg-[linear-gradient(180deg,#f8f4ea_0%,#f2f5ef_100%)] px-5 py-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:px-6 sm:py-6">
+      <div className="mb-8 aspect-[16/10] w-full rounded-[1.35rem] border border-white/70 bg-[radial-gradient(circle_at_18%_24%,rgba(246,221,172,0.46),transparent_20%),radial-gradient(circle_at_82%_26%,rgba(201,220,255,0.8),transparent_18%),linear-gradient(135deg,#122338_0%,#21415f_48%,#3e6a6f_74%,#d5a15d_100%)]" />
+      <div className="flex items-start gap-3">
+        <div className="rounded-full bg-white/82 p-2 text-[#7b6947] shadow-[0_8px_20px_rgba(15,23,42,0.06)]">
+          <Icon className="h-4 w-4" />
+        </div>
+        <div className="space-y-1">
+          <p className="text-[0.9rem] font-semibold text-[#1f2937]">{asset.title}</p>
+          <p className="text-[0.85rem] leading-[1.55] text-[#667085]">
+            {asset.description}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatusChip({
+  children,
+  subtle = false,
+}: {
+  children: React.ReactNode;
+  subtle?: boolean;
+}) {
+  return (
+    <span
+      className={`inline-flex rounded-full px-3 py-1 text-[0.72rem] font-semibold uppercase tracking-[0.16em] ${
+        subtle
+          ? "border border-[#ddd7c8] bg-[#f5f1e8] text-[#866c38]"
+          : "border border-[#f4d5a6] bg-[#f6e2bf] text-[#6d4d16]"
+      }`}
+    >
+      {children}
+    </span>
   );
 }
 
