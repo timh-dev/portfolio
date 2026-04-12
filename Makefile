@@ -1,6 +1,6 @@
 SHELL := /bin/sh
 
-.PHONY: setup install dev build preview lint clean doctor ci gh-deploy gh-runs gh-watch gh-sync-vars
+.PHONY: setup install dev build preview lint clean doctor ci gh-deploy gh-runs gh-watch gh-sync-vars gh-sync-vercel
 
 setup: install
 
@@ -42,6 +42,16 @@ gh-sync-vars:
 	gh variable set VITE_EMAIL --body "$$VITE_EMAIL"; \
 	gh variable set VITE_GITHUB_URL --body "$$VITE_GITHUB_URL"; \
 	gh variable set VITE_ROLE --body "$$VITE_ROLE"
+
+gh-sync-vercel:
+	@test -f .vercel/project.json || { echo ".vercel/project.json not found — run 'vercel' first"; exit 1; }
+	@ORG_ID=$$(node -p "require('./.vercel/project.json').orgId"); \
+	PROJECT_ID=$$(node -p "require('./.vercel/project.json').projectId"); \
+	gh secret set VERCEL_ORG_ID --body "$$ORG_ID"; \
+	gh secret set VERCEL_PROJECT_ID --body "$$PROJECT_ID"; \
+	echo "Set VERCEL_ORG_ID and VERCEL_PROJECT_ID from .vercel/project.json"
+	@echo "Now enter your Vercel token (create at https://vercel.com/account/tokens):"
+	@read -s VERCEL_TOKEN && gh secret set VERCEL_TOKEN --body "$$VERCEL_TOKEN" && echo "Set VERCEL_TOKEN"
 
 clean:
 	rm -rf dist
