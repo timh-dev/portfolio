@@ -650,10 +650,14 @@ function AssetPlaceholder({ asset }: { asset: ProjectAsset }) {
   }
 
   if (asset.src) {
+    const resolvedSrc = asset.src.startsWith("/")
+      ? `${import.meta.env.BASE_URL}${asset.src.slice(1)}`
+      : asset.src;
+
     return (
       <div className="overflow-hidden rounded-[1.75rem] bg-[#f8f4ea] shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
         <img
-          src={asset.src}
+          src={resolvedSrc}
           alt={asset.title}
           className="w-full rounded-[1.75rem]"
           loading="lazy"
