@@ -47,6 +47,8 @@ jobs:
 
       - name: Build site
         run: make build
+        env:
+          GITHUB_PAGES: true
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
@@ -56,7 +58,7 @@ jobs:
         with:
           path: ./dist
 
-  deploy:
+  deploy-pages:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -66,3 +68,46 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  deploy-vercel:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Create env file
+        run: |
+          cat > .env <<EOF
+          VITE_DISPLAY_NAME="${{ vars.VITE_DISPLAY_NAME }}"
+          VITE_INITIALS="${{ vars.VITE_INITIALS }}"
+          VITE_EMAIL="${{ vars.VITE_EMAIL }}"
+          VITE_GITHUB_URL="${{ vars.VITE_GITHUB_URL }}"
+          VITE_ROLE="${{ vars.VITE_ROLE }}"
+          EOF
+
+      - name: Install Vercel CLI
+        run: npm i -g vercel
+
+      - name: Pull Vercel environment
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Build for Vercel
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Deploy to Vercel
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
