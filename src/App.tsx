@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import type { ProjectAsset, ProjectTab } from "@/data/site";
+import type { ProjectAsset, ProjectSection } from "@/data/site";
 import { caseStudies, experience, intro, navItems, writing } from "@/data/site";
 
 const socialIcons = {
@@ -40,7 +40,6 @@ function getProjectFromPath() {
 
 function App() {
   const [pathname, setPathname] = useState(() => getPathname());
-  const [activeTab, setActiveTab] = useState<ProjectTab["id"]>("backend");
   const [activeSection, setActiveSection] = useState(1);
   const [scrollProgress, setScrollProgress] = useState(0);
 
@@ -56,7 +55,6 @@ function App() {
   const activeProject = useMemo(() => getProjectFromPath(), [pathname]);
 
   useEffect(() => {
-    setActiveTab("backend");
     window.scrollTo({ top: 0, behavior: "auto" });
   }, [pathname]);
 
@@ -65,11 +63,11 @@ function App() {
       return;
     }
 
-    const ids = activeProject.tabs
-      .find((tab) => tab.id === activeTab)
-      ?.sections.map((_, index) => `section-${index + 1}`);
+    const ids = activeProject.sections.map(
+      (_, index) => `section-${index + 1}`,
+    );
 
-    if (!ids?.length) {
+    if (!ids.length) {
       return;
     }
 
@@ -103,7 +101,7 @@ function App() {
     return () => {
       window.removeEventListener("scroll", onScroll);
     };
-  }, [activeProject, activeTab, pathname]);
+  }, [activeProject, pathname]);
 
   const navigate = (nextPath: string) => {
     window.history.pushState({}, "", nextPath);
@@ -114,10 +112,8 @@ function App() {
     return (
       <ProjectArticlePage
         activeProject={activeProject}
-        activeTab={activeTab}
         activeSection={activeSection}
         onBack={() => navigate("/#case-studies")}
-        onTabChange={setActiveTab}
         scrollProgress={scrollProgress}
       />
     );
@@ -347,22 +343,15 @@ function HomePage({ onOpenProject }: { onOpenProject: (slug: string) => void }) 
 
 function ProjectArticlePage({
   activeProject,
-  activeTab,
   activeSection,
   onBack,
-  onTabChange,
   scrollProgress,
 }: {
   activeProject: (typeof caseStudies)[number];
-  activeTab: ProjectTab["id"];
   activeSection: number;
   onBack: () => void;
-  onTabChange: (tab: ProjectTab["id"]) => void;
   scrollProgress: number;
 }) {
-  const currentTab =
-    activeProject.tabs.find((tab) => tab.id === activeTab) ?? activeProject.tabs[0];
-
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#f4f0e5_0%,#f8f6f1_22%,#fbfbf8_100%)] text-[#1f2937]">
       <div className="mx-auto max-w-[88rem] px-6 py-8 sm:px-8 lg:px-10">
@@ -408,7 +397,7 @@ function ProjectArticlePage({
                     In this article
                   </p>
                   <div className="space-y-4">
-                    {currentTab.sections.map((section, index) => {
+                    {activeProject.sections.map((section, index) => {
                       const isActive = activeSection === index + 1;
 
                       return (
@@ -480,36 +469,17 @@ function ProjectArticlePage({
               </div>
             </header>
 
-            <div className="mb-14">
-              <div className="inline-flex rounded-full border border-[#e3dccd] bg-[#f7f3ea] p-1">
-                {activeProject.tabs.map((tab) => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => onTabChange(tab.id)}
-                    className={`rounded-full px-4 py-2 text-[0.88rem] font-semibold transition ${
-                      activeTab === tab.id
-                        ? "bg-[#1d2939] text-white"
-                        : "text-[#667085] hover:text-[#1d2939]"
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
             <div className="mb-14 max-w-[44rem]">
               <p className="mb-3 text-[0.76rem] font-semibold uppercase tracking-[0.22em] text-[#8a7652]">
                 Abstract
               </p>
               <p className="text-[1.04rem] leading-[1.95] text-[#324152]">
-                {currentTab.intro}
+                {activeProject.intro}
               </p>
             </div>
 
             <div className="space-y-20">
-              {currentTab.sections.map((section, index) => (
+              {activeProject.sections.map((section, index) => (
                 <ArticleSection
                   key={section.title}
                   index={index + 1}
@@ -529,7 +499,7 @@ function ArticleSection({
   section,
 }: {
   index: number;
-  section: ProjectTab["sections"][number];
+  section: ProjectSection;
 }) {
   return (
     <section
@@ -636,6 +606,23 @@ function MediaText({ asset }: { asset: ProjectAsset }) {
 }
 
 function AssetPlaceholder({ asset }: { asset: ProjectAsset }) {
+  if (asset.format === "diagram" && asset.diagramId) {
+    return <ArchitectureDiagram diagramId={asset.diagramId} />;
+  }
+
+  if (asset.src) {
+    return (
+      <div className="overflow-hidden rounded-[1.75rem] bg-[#f8f4ea] shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
+        <img
+          src={asset.src}
+          alt={asset.title}
+          className="w-full rounded-[1.75rem]"
+          loading="lazy"
+        />
+      </div>
+    );
+  }
+
   const Icon =
     asset.format === "video"
       ? Video
@@ -655,6 +642,204 @@ function AssetPlaceholder({ asset }: { asset: ProjectAsset }) {
           <p className="text-[0.85rem] leading-[1.55] text-[#667085]">
             {asset.description}
           </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ArchitectureDiagram({
+  diagramId,
+}: {
+  diagramId: "current-state" | "future-state";
+}) {
+  if (diagramId === "current-state") {
+    return <CurrentStateDiagram />;
+  }
+  return <FutureStateDiagram />;
+}
+
+function DiagramBox({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`rounded-lg border border-[#ddd0b7] bg-white px-3 py-2 text-center text-[0.78rem] font-medium text-[#1f2937] shadow-[0_2px_8px_rgba(15,23,42,0.04)] ${className}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+function DiagramLabel({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <p className="mb-2 text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-[#8a7652]">
+      {children}
+    </p>
+  );
+}
+
+function DiagramArrow({ direction = "down" }: { direction?: "down" | "right" }) {
+  if (direction === "right") {
+    return (
+      <div className="flex items-center justify-center px-1">
+        <div className="h-px w-6 bg-[#c4b898]" />
+        <div className="h-0 w-0 border-l-[5px] border-l-[#c4b898] border-y-[3px] border-y-transparent" />
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-col items-center py-1">
+      <div className="h-4 w-px bg-[#c4b898]" />
+      <div className="h-0 w-0 border-t-[5px] border-t-[#c4b898] border-x-[3px] border-x-transparent" />
+    </div>
+  );
+}
+
+function CurrentStateDiagram() {
+  return (
+    <div className="overflow-hidden rounded-[1.75rem] bg-[linear-gradient(180deg,#f8f4ea_0%,#f2f5ef_100%)] p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-8">
+      <div className="mb-4 flex items-center gap-3">
+        <div className="rounded-full bg-white/82 p-2 text-[#7b6947] shadow-[0_8px_20px_rgba(15,23,42,0.06)]">
+          <Sparkles className="h-4 w-4" />
+        </div>
+        <p className="text-[0.9rem] font-semibold text-[#1f2937]">Current-State Architecture</p>
+      </div>
+
+      <div className="space-y-1">
+        <DiagramLabel>Client</DiagramLabel>
+        <DiagramBox className="bg-[#fbf7ef]">React + TypeScript + Vite</DiagramBox>
+
+        <DiagramArrow />
+
+        <DiagramLabel>Application Runtime</DiagramLabel>
+        <div className="rounded-xl border border-[#e3dccd] bg-[#faf8f3] p-4 space-y-3">
+          <DiagramBox>FastAPI Routers</DiagramBox>
+          <DiagramArrow />
+          <DiagramBox>Services Layer</DiagramBox>
+          <DiagramArrow />
+          <div className="grid grid-cols-3 gap-2">
+            <DiagramBox>Repositories + ORM</DiagramBox>
+            <DiagramBox>Ingestion Parser</DiagramBox>
+            <DiagramBox>Geospatial Utils</DiagramBox>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 mt-1">
+          <div>
+            <DiagramArrow />
+            <DiagramLabel>Data</DiagramLabel>
+            <DiagramBox className="bg-[#eef0eb]">PostgreSQL + PostGIS</DiagramBox>
+          </div>
+          <div>
+            <DiagramArrow />
+            <DiagramLabel>Platform</DiagramLabel>
+            <div className="space-y-2">
+              <DiagramBox className="bg-[#eef0eb]">Dagster Assets + Jobs</DiagramBox>
+              <DiagramBox className="bg-[#eef0eb]">MLflow Tracking</DiagramBox>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FutureStateDiagram() {
+  return (
+    <div className="overflow-hidden rounded-[1.75rem] bg-[linear-gradient(180deg,#f8f4ea_0%,#f2f5ef_100%)] p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-8">
+      <div className="mb-4 flex items-center gap-3">
+        <div className="rounded-full bg-white/82 p-2 text-[#7b6947] shadow-[0_8px_20px_rgba(15,23,42,0.06)]">
+          <Sparkles className="h-4 w-4" />
+        </div>
+        <p className="text-[0.9rem] font-semibold text-[#1f2937]">Future-State Architecture</p>
+      </div>
+
+      <div className="space-y-1">
+        <DiagramLabel>Clients</DiagramLabel>
+        <div className="grid grid-cols-3 gap-2">
+          <DiagramBox className="bg-[#fbf7ef]">Web App</DiagramBox>
+          <DiagramBox className="bg-[#fbf7ef]">Mobile Apps</DiagramBox>
+          <DiagramBox className="bg-[#fbf7ef]">Partner Integrations</DiagramBox>
+        </div>
+
+        <DiagramArrow />
+
+        <DiagramLabel>Edge + Access</DiagramLabel>
+        <div className="rounded-xl border border-[#e3dccd] bg-[#faf8f3] p-4">
+          <div className="grid grid-cols-4 gap-2">
+            <DiagramBox>CDN + Edge Cache</DiagramBox>
+            <DiagramBox>WAF / Rate Limiting</DiagramBox>
+            <DiagramBox>API Gateway / BFF</DiagramBox>
+            <DiagramBox>Auth + Identity</DiagramBox>
+          </div>
+        </div>
+
+        <DiagramArrow />
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1">
+            <DiagramLabel>Core Product Services</DiagramLabel>
+            <div className="rounded-xl border border-[#e3dccd] bg-[#faf8f3] p-3 space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <DiagramBox>Activity Service</DiagramBox>
+                <DiagramBox>Profile Service</DiagramBox>
+                <DiagramBox>Route + Geo Service</DiagramBox>
+                <DiagramBox>Analytics Service</DiagramBox>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <DiagramLabel>Ingestion + Events</DiagramLabel>
+            <div className="rounded-xl border border-[#e3dccd] bg-[#faf8f3] p-3 space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <DiagramBox>Upload Service</DiagramBox>
+                <DiagramBox>Event Bus</DiagramBox>
+                <DiagramBox>Async Workers</DiagramBox>
+                <DiagramBox>Stream Enrichment</DiagramBox>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <DiagramArrow />
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1">
+            <DiagramLabel>Data Plane</DiagramLabel>
+            <div className="rounded-xl border border-[#e3dccd] bg-[#eef0eb] p-3 space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <DiagramBox className="bg-white">OLTP Store</DiagramBox>
+                <DiagramBox className="bg-white">Geo Index</DiagramBox>
+                <DiagramBox className="bg-white">Object Storage</DiagramBox>
+                <DiagramBox className="bg-white">Lakehouse</DiagramBox>
+                <DiagramBox className="bg-white">Cache Layer</DiagramBox>
+                <DiagramBox className="bg-white">Search Index</DiagramBox>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <DiagramLabel>ML Platform</DiagramLabel>
+            <div className="rounded-xl border border-[#e3dccd] bg-[#eef0eb] p-3 space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <DiagramBox className="bg-white">Feature Pipelines</DiagramBox>
+                <DiagramBox className="bg-white">Training Jobs</DiagramBox>
+                <DiagramBox className="bg-white">Model Registry</DiagramBox>
+                <DiagramBox className="bg-white">Batch Inference</DiagramBox>
+              </div>
+              <DiagramBox className="bg-white">Online Inference Service</DiagramBox>
+            </div>
+          </div>
         </div>
       </div>
     </div>
