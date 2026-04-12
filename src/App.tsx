@@ -312,6 +312,51 @@ function HomePage({ onOpenProject }: { onOpenProject: (slug: string) => void }) 
                 </div>
               </div>
             </button>
+
+            {caseStudies.slice(1).map((project) => (
+              <button
+                key={project.slug}
+                type="button"
+                onClick={() => onOpenProject(project.slug)}
+                className="group block w-full overflow-hidden rounded-[2rem] border border-[#d8ddd3] bg-[#fbfaf6] text-left shadow-[0_16px_50px_rgba(49,54,44,0.06)] transition hover:-translate-y-1 hover:shadow-[0_24px_70px_rgba(49,54,44,0.1)]"
+              >
+                <div className="p-6 sm:p-8">
+                  <div className="space-y-5">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <StatusChip>{project.status}</StatusChip>
+                    </div>
+
+                    <div className="max-w-[38rem] space-y-3">
+                      <h3 className="text-[1.8rem] font-bold leading-[1] tracking-[-0.04em] text-[#17212b]">
+                        {project.title}
+                      </h3>
+                      <p className="text-[1rem] text-[#667085]">
+                        {project.subtitle}
+                      </p>
+                      <p className="text-[0.96rem] leading-[1.7] text-[#5d615c]">
+                        {project.description}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      {project.stack.map((item) => (
+                        <span
+                          key={item}
+                          className="rounded-full border border-[#dccfb7] bg-white/80 px-3 py-1.5 text-[0.82rem] font-medium text-[#473b28]"
+                        >
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+
+                    <div className="flex items-center gap-3 text-[0.9rem] font-semibold text-[#1f2937]">
+                      <span>Open case study</span>
+                      <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
+                    </div>
+                  </div>
+                </div>
+              </button>
+            ))}
           </section>
 
           <section id="writing" className="space-y-9">
@@ -448,12 +493,6 @@ function ProjectArticlePage({
               <div className="max-w-[42rem] space-y-5">
                 <p className="text-[1.08rem] leading-[1.95] text-[#3f4a5a]">
                   {activeProject.description}
-                </p>
-                <p className="text-[1rem] leading-[1.9] text-[#5f6b7a]">
-                  This page is structured as a longform engineering article rather
-                  than a portfolio card. The point is to let a recruiter or
-                  hiring manager read the system progressively, understand the
-                  decisions, and evaluate the work at the right level of depth.
                 </p>
               </div>
 
@@ -651,10 +690,16 @@ function AssetPlaceholder({ asset }: { asset: ProjectAsset }) {
 function ArchitectureDiagram({
   diagramId,
 }: {
-  diagramId: "current-state" | "future-state";
+  diagramId: "current-state" | "future-state" | "langhome-architecture" | "langhome-future";
 }) {
   if (diagramId === "current-state") {
     return <CurrentStateDiagram />;
+  }
+  if (diagramId === "langhome-architecture") {
+    return <LangHomeArchitectureDiagram />;
+  }
+  if (diagramId === "langhome-future") {
+    return <LangHomeFutureDiagram />;
   }
   return <FutureStateDiagram />;
 }
@@ -838,6 +883,136 @@ function FutureStateDiagram() {
                 <DiagramBox className="bg-white">Batch Inference</DiagramBox>
               </div>
               <DiagramBox className="bg-white">Online Inference Service</DiagramBox>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LangHomeArchitectureDiagram() {
+  return (
+    <div className="overflow-hidden rounded-[1.75rem] bg-[linear-gradient(180deg,#f8f4ea_0%,#f2f5ef_100%)] p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-8">
+      <div className="mb-4 flex items-center gap-3">
+        <div className="rounded-full bg-white/82 p-2 text-[#7b6947] shadow-[0_8px_20px_rgba(15,23,42,0.06)]">
+          <Sparkles className="h-4 w-4" />
+        </div>
+        <p className="text-[0.9rem] font-semibold text-[#1f2937]">LangHome Architecture</p>
+      </div>
+
+      <div className="space-y-1">
+        <DiagramLabel>User Input</DiagramLabel>
+        <div className="grid grid-cols-2 gap-2">
+          <DiagramBox className="bg-[#fbf7ef]">Gradio Chat UI</DiagramBox>
+          <DiagramBox className="bg-[#fbf7ef]">CLI Interface</DiagramBox>
+        </div>
+
+        <DiagramArrow />
+
+        <DiagramLabel>Agent Layer</DiagramLabel>
+        <div className="rounded-xl border border-[#e3dccd] bg-[#faf8f3] p-4 space-y-3">
+          <DiagramBox>LightingAgent</DiagramBox>
+          <DiagramArrow />
+          <div className="grid grid-cols-3 gap-2">
+            <DiagramBox>System Prompt</DiagramBox>
+            <DiagramBox>Scene Memory</DiagramBox>
+            <DiagramBox>Capability Payload</DiagramBox>
+          </div>
+        </div>
+
+        <DiagramArrow />
+
+        <DiagramLabel>LLM Providers</DiagramLabel>
+        <div className="grid grid-cols-2 gap-2">
+          <DiagramBox className="bg-[#eef0eb]">Google Gemini API</DiagramBox>
+          <DiagramBox className="bg-[#eef0eb]">Ollama (Local)</DiagramBox>
+        </div>
+
+        <DiagramArrow />
+
+        <DiagramLabel>Structured Scene Plan (JSON)</DiagramLabel>
+        <DiagramBox>Scene Name + Actions Array</DiagramBox>
+
+        <DiagramArrow />
+
+        <div className="grid grid-cols-2 gap-4 mt-1">
+          <div>
+            <DiagramLabel>Execution</DiagramLabel>
+            <div className="space-y-2">
+              <DiagramBox className="bg-[#eef0eb]">Home Assistant REST API</DiagramBox>
+              <DiagramBox className="bg-[#eef0eb]">Color Format Conversion</DiagramBox>
+            </div>
+          </div>
+          <div>
+            <DiagramLabel>Devices</DiagramLabel>
+            <div className="space-y-2">
+              <DiagramBox className="bg-[#eef0eb]">Philips Hue (XY + CT)</DiagramBox>
+              <DiagramBox className="bg-[#eef0eb]">WiZ RGBWW (RGB + CT)</DiagramBox>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LangHomeFutureDiagram() {
+  return (
+    <div className="overflow-hidden rounded-[1.75rem] bg-[linear-gradient(180deg,#f8f4ea_0%,#f2f5ef_100%)] p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:p-8">
+      <div className="mb-4 flex items-center gap-3">
+        <div className="rounded-full bg-white/82 p-2 text-[#7b6947] shadow-[0_8px_20px_rgba(15,23,42,0.06)]">
+          <Sparkles className="h-4 w-4" />
+        </div>
+        <p className="text-[0.9rem] font-semibold text-[#1f2937]">Future LangHome Architecture</p>
+      </div>
+
+      <div className="space-y-1">
+        <DiagramLabel>Input Sources</DiagramLabel>
+        <div className="grid grid-cols-3 gap-2">
+          <DiagramBox className="bg-[#fbf7ef]">Chat UI</DiagramBox>
+          <DiagramBox className="bg-[#fbf7ef]">Voice (Whisper)</DiagramBox>
+          <DiagramBox className="bg-[#fbf7ef]">MCP Server</DiagramBox>
+        </div>
+
+        <DiagramArrow />
+
+        <DiagramLabel>Agent Core</DiagramLabel>
+        <div className="rounded-xl border border-[#e3dccd] bg-[#faf8f3] p-4 space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            <DiagramBox>LightingAgent</DiagramBox>
+            <DiagramBox>Scene Memory + RAG</DiagramBox>
+          </div>
+          <DiagramArrow />
+          <DiagramBox>Multi-Provider LLM (Gemini / Ollama / Claude)</DiagramBox>
+        </div>
+
+        <DiagramArrow />
+
+        <DiagramLabel>Tool Surface</DiagramLabel>
+        <div className="rounded-xl border border-[#e3dccd] bg-[#faf8f3] p-4">
+          <div className="grid grid-cols-4 gap-2">
+            <DiagramBox>Lighting</DiagramBox>
+            <DiagramBox>Climate</DiagramBox>
+            <DiagramBox>Media</DiagramBox>
+            <DiagramBox>Automation</DiagramBox>
+          </div>
+        </div>
+
+        <DiagramArrow />
+
+        <DiagramLabel>Execution Layer</DiagramLabel>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1">
+            <div className="rounded-xl border border-[#e3dccd] bg-[#eef0eb] p-3 space-y-2">
+              <DiagramBox className="bg-white">Home Assistant API</DiagramBox>
+              <DiagramBox className="bg-white">Event Bus + Triggers</DiagramBox>
+            </div>
+          </div>
+          <div className="space-y-1">
+            <div className="rounded-xl border border-[#e3dccd] bg-[#eef0eb] p-3 space-y-2">
+              <DiagramBox className="bg-white">Hue / WiZ / Z-Wave</DiagramBox>
+              <DiagramBox className="bg-white">Thermostats / Speakers</DiagramBox>
             </div>
           </div>
         </div>

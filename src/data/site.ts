@@ -83,7 +83,7 @@ export type ProjectAsset = {
   description: string;
   format: "image" | "video" | "diagram";
   src?: string;
-  diagramId?: "current-state" | "future-state";
+  diagramId?: "current-state" | "future-state" | "langhome-architecture" | "langhome-future";
   align?: "left" | "right" | "center";
   sideNote?: string;
   bodyBelow?: string;
@@ -354,6 +354,134 @@ export const caseStudies = [
             align: "center",
             bodyBelow:
               "If Altvia were pushed toward Strava-scale usage, the architecture would need to become event-driven and storage-tiered. Uploads would be accepted quickly, heavy enrichments would move into queues and workers, route data would split across hot geospatial stores and cold object storage, and ML would rely more on batch and cached inference than universal real-time scoring.",
+          },
+        ],
+      },
+    ] as const satisfies readonly ProjectSection[],
+  },
+  {
+    slug: "langhome",
+    title: "LangHome",
+    subtitle: "AI-powered smart home lighting agent",
+    description:
+      "A Python agent that interprets natural language scene requests, reasons about available smart home devices and their capabilities, and generates structured lighting configurations executed through the Home Assistant API.",
+    status: "Work in progress",
+    stack: [
+      "Python",
+      "Google Gemini",
+      "Ollama",
+      "LangChain",
+      "Gradio",
+      "Home Assistant",
+      "Hue + WiZ",
+    ],
+    summaryPoints: [
+      "Natural language to structured lighting scenes via LLM-driven planning",
+      "Multi-provider LLM support with Gemini and Ollama backends",
+      "Capability-aware device control through the Home Assistant REST API",
+    ],
+    intro:
+      "LangHome is a personal project that connects large language models to real smart home hardware. The idea is straightforward: describe the mood or scene you want in plain language, and the agent figures out which lights to set, what colors and brightness levels to use, and how to respect the specific capabilities of each device in the network. The system currently supports Philips Hue and WiZ smart bulbs through the Home Assistant API, with Google Gemini and local Ollama models as interchangeable LLM backends. A Gradio-based chat interface provides a plan-review-apply workflow with streaming scene generation, visual previews, and persistent scene history. This write-up covers the architectural decisions behind the agent, how it integrates with real hardware, and where it is headed as a broader home automation platform.",
+    sections: [
+      {
+        title: "Stack & Design Decisions",
+        description:
+          "The stack is built around a Python-first agent architecture with swappable LLM providers, a lightweight web UI, and direct integration with a production home automation platform.",
+        paragraphs: [
+          "Python was the natural language for this project because the entire value chain is Python-native. The LLM client libraries for both Google Gemini and Ollama are Python-first, LangChain's tool abstraction layer is a Python framework, and the Home Assistant REST API is straightforward to consume with the requests library. Using Python throughout means the agent logic, tool definitions, device integration, and UI all share one runtime with no serialization boundaries or cross-language interop. For a project where the core challenge is orchestrating LLM reasoning with real-world device control, eliminating accidental complexity in the runtime is the right tradeoff.",
+          "The dual-provider LLM architecture supports both Google Gemini and local Ollama models through a shared interface. Both providers implement the same generate_json and generate_json_stream methods, which means the agent layer does not know or care which model is producing the scene plan. This design was motivated by practical concerns: Gemini offers fast, high-quality responses through a cloud API, while Ollama enables local inference with models like Qwen on personal hardware without sending home device data to external services. The ability to switch providers at runtime through the Gradio UI means the system can be used in either mode depending on latency requirements, privacy preferences, or network availability.",
+          "Gradio was chosen over a React or Next.js frontend because the UI requirements are conversational rather than spatial. The core interaction is a chat interface where a user describes a scene, reviews the generated plan, and applies it. Gradio's streaming support, built-in chat components, and Python-native event handling make it possible to build this entire workflow in a single Python file without a separate build step, frontend framework, or API layer. For a project where the engineering complexity should be concentrated in the agent and device integration layers rather than the UI, Gradio keeps the surface area manageable.",
+          "Home Assistant was selected as the device integration layer rather than direct Hue or WiZ APIs because it provides a unified abstraction over heterogeneous smart home devices. The Philips Hue bulbs and WiZ smart lights in the current setup use different protocols and have different capability profiles, but Home Assistant normalizes them into a consistent entity model with standardized state attributes and service calls. This means the agent only needs to understand one API and one device schema rather than implementing separate integrations for each manufacturer. As the project grows to include more device types, Home Assistant's 2,000+ integrations provide a ready-made compatibility layer.",
+          "LangChain Core provides the tool wrapper framework through its @tool decorator, which transforms Python functions into structured tool definitions that an LLM can reason about. The current tools include get_lights for fetching normalized device state and execute_scene for applying a generated lighting plan. LangChain was chosen specifically for its tool abstraction rather than its full agent framework because the agent orchestration in LangHome is custom: the LightingAgent class manages the prompt construction, memory, and LLM interaction directly rather than delegating to LangChain's agent executors. This gives full control over the reasoning loop while still benefiting from LangChain's tool serialization and type system.",
+        ],
+      },
+      {
+        title: "Agent Architecture & LLM Integration",
+        description:
+          "The LightingAgent orchestrates scene planning by constructing capability-aware prompts, managing scene memory, and producing structured JSON output through streaming LLM inference.",
+        paragraphs: [
+          "The LightingAgent class is the core orchestration component. It takes a natural language scene request, enriches it with the current state of all available lights and their capabilities, includes the most recent scene for continuity, and sends the full payload to the selected LLM with a system prompt that constrains output to valid JSON. The agent does not control devices directly during the planning phase: it produces a structured scene specification that includes entity IDs, brightness levels, colors, and color temperature values for each light. This separation between planning and execution is important because it lets the user review and modify the plan before anything changes in the physical environment.",
+          "The system prompt is the most carefully designed component in the stack. It instructs the LLM to behave as a lighting scene planner that outputs only valid JSON, never attempts to control devices directly, and respects the specific capabilities of each light. The prompt includes the full schema for expected output: a scene_name string and an actions array where each action maps an entity_id to brightness (0-100), an optional color (as hex RGB, XY coordinates, or color name), and an optional kelvin value for color temperature. By constraining the LLM's output format in the system prompt, the agent can parse responses deterministically without fuzzy extraction or retry logic.",
+          "The capability-aware payload is what makes the agent's scene plans physically valid. Before sending a request to the LLM, the agent fetches the current state of every light from Home Assistant and normalizes each device into a capability model that includes supported color modes (RGB, XY, color temperature), brightness support, minimum and maximum kelvin ranges, whether the device is a group, and the appropriate control target for the Home Assistant service call. This capability data is included in every LLM request, which means the model can make informed decisions: it will not assign an RGB color to a bulb that only supports color temperature, and it will not set a kelvin value outside a device's supported range.",
+          "Scene memory provides conversational continuity. The SceneMemory class persists generated scenes to a JSON file and maintains an in-memory cache of the most recent 50 scenes. When the agent constructs a new LLM request, it includes the last generated scene in the payload, which lets the user make incremental requests like 'make it warmer' or 'turn off the bedroom light' without restating the entire scene. The memory also powers the scene history browser in the Gradio UI, where users can scroll through previously generated scenes and reapply them directly.",
+          "Streaming is implemented through generator-based inference. Both the Gemini and Ollama providers support generate_json_stream, which yields partial JSON chunks as the LLM generates tokens. The Gradio UI consumes this generator to display real-time scene generation progress, giving the user immediate visual feedback while the model is still producing the full plan. The final yield contains the complete, validated scene object that can be applied to the devices. This streaming architecture means the user experience feels responsive even when using larger local models through Ollama that may take 10-60 seconds for a complete generation.",
+        ],
+        assets: [
+          {
+            title: "LangHome architecture",
+            description:
+              "The agent architecture: user input flows through the LightingAgent, which enriches the request with device capabilities and scene memory before sending to the LLM. The structured plan is reviewed in the UI and executed through the Home Assistant API.",
+            format: "diagram",
+            diagramId: "langhome-architecture",
+            align: "center",
+            bodyBelow:
+              "The architecture separates planning from execution. The LLM never touches devices directly: it produces a structured plan that the user can review, modify, or reject before anything changes in the physical environment.",
+          },
+        ],
+      },
+      {
+        title: "Home Assistant Integration & Device Control",
+        description:
+          "The HomeAssistantClient normalizes heterogeneous smart home devices into a unified capability model and executes scenes through the Home Assistant REST API with format-aware color conversion.",
+        paragraphs: [
+          "The HomeAssistantClient class handles all communication with the Home Assistant instance. It fetches entity states through the REST API, normalizes light attributes into a structured capability model, and executes scenes by translating the agent's plan into Home Assistant service calls. The client authenticates using long-lived access tokens and communicates over HTTP, which means it works with both local and remote Home Assistant installations without additional network configuration.",
+          "Device capability normalization is the most important function in the integration layer. Home Assistant exposes light attributes in a raw format that varies by manufacturer and protocol: Hue bulbs report supported_color_modes as an array that might contain 'xy' and 'color_temp', WiZ bulbs might report 'rgb' and 'color_temp', and group entities aggregate capabilities from their member lights. The HomeAssistantClient normalizes all of this into a consistent model that exposes boolean flags for brightness, color, and color temperature support, the supported color mode list, kelvin range bounds, and whether the entity is a group. This normalized model is what gets sent to the LLM, and it is also what the execution layer uses to validate commands before sending them to devices.",
+          "Color format conversion handles the translation between how the LLM specifies colors and how Home Assistant expects them. The LLM can output colors as hex strings (#RRGGBB), XY coordinate arrays for CIE color space, or named colors. The execution layer converts each format into the appropriate Home Assistant service call parameter: hex strings become rgb_color arrays, XY arrays become xy_color coordinates, and color names pass through directly. Brightness values are clamped to the 0-100 range, and kelvin values are clamped to each device's supported range. This conversion logic ensures that the scene plan the user reviewed is exactly what gets applied to the hardware.",
+          "Scene execution is sequential and fault-tolerant. When the user applies a scene, the client iterates through the actions array and sends a POST request to the Home Assistant light.turn_on service for each light. Each request includes the entity_id and whichever attributes the action specifies: brightness_pct, rgb_color or xy_color or color_temp_kelvin, depending on the color format. The execution collects results for each light and reports success or failure back to the UI. Sequential execution was chosen over parallel requests because Home Assistant's Zigbee and WiFi bridges have limited concurrent command capacity, and sending too many commands simultaneously can cause dropped messages or race conditions in the device mesh.",
+          "The current device fleet includes eight Philips Hue color bulbs and one WiZ RGBWW tunable light, spanning living room, bedroom, and common area zones. The Hue bulbs support XY color mode and color temperature with a 2000-6500K range, while the WiZ light supports RGB and color temperature modes. This heterogeneous fleet is a useful test case because it forces the system to handle different capability profiles within a single scene: a scene that uses RGB colors will need to translate those colors differently for Hue (which prefers XY) versus WiZ (which accepts RGB directly).",
+        ],
+      },
+      {
+        title: "User Experience & Gradio Interface",
+        description:
+          "The Gradio web interface provides a conversational plan-review-apply workflow with streaming scene generation, visual color previews, and a scene history browser.",
+        paragraphs: [
+          "The Gradio interface is organized as a three-column layout: the chat panel on the left, scene history in the center, and a visual scene preview on the right. The chat panel is the primary interaction surface where the user types scene descriptions and receives streaming responses from the agent. The history panel shows previously generated scenes as a selectable dropdown, and the preview panel renders the current scene plan as a visual table with brightness bars and color swatches for each light.",
+          "The plan-review-apply workflow is the core interaction pattern. When a user submits a scene description, the agent generates a plan and streams it into the chat. The plan appears as a structured JSON response that includes the scene name and the specific settings for each light. At this point, nothing has changed in the physical environment. The user can read the plan, see the visual preview with color swatches, and decide whether to apply it by clicking the Apply Scene button. This two-step pattern prevents accidental light changes and gives the user an opportunity to refine the request before execution.",
+          "The scene preview renderer is a custom HTML component that provides visual feedback for the generated plan. Each light in the scene is displayed as a row with the device's friendly name, a brightness bar rendered as a percentage-filled gradient, and a color swatch showing the assigned color. Hex colors render as solid swatches, XY coordinates render as gradient approximations, and kelvin values render as warm-to-cool temperature indicators. The preview uses a dark theme with rounded corners and subtle shadows, consistent with the overall interface aesthetic. This visual rendering matters because raw JSON scene plans are hard to evaluate at a glance, and being able to see the color palette and brightness distribution of a scene before applying it makes the interaction feel confident rather than speculative.",
+          "Provider and model selection are exposed as UI controls that allow switching between Gemini and Ollama at runtime. When the provider changes, the application context cache creates a new AppContext with fresh LLM client, agent, and memory instances for the selected provider-model combination. Previously generated scenes from the same provider-model pair are preserved in the history, which means switching between providers does not lose work. The model name field is also editable, supporting experimentation with different Ollama models without restarting the application.",
+          "Scene history persistence survives application restarts through the SceneMemory class's JSON file storage. The last 50 generated scenes are written to data/scene_history.json after each successful generation, and the 10 most recent scenes are displayed in the history browser. Selecting a historical scene from the dropdown loads its preview into the right panel and makes it available for reapplication. This persistence is simple but meaningful: it turns individual scene experiments into a reusable library of lighting configurations that can be recalled and applied without regeneration.",
+        ],
+        assets: [
+          {
+            title: "Gradio chat interface",
+            description:
+              "The main LangHome interface showing the chat panel, scene preview with color swatches and brightness bars, and the scene history browser.",
+            format: "image",
+            align: "center",
+          },
+          {
+            title: "Scene preview with color swatches",
+            description:
+              "The visual scene preview showing each light's brightness level as a gradient bar and assigned color as a rendered swatch.",
+            format: "image",
+            align: "right",
+            sideNote:
+              "The visual preview transforms raw JSON scene plans into something a user can evaluate at a glance: does this palette feel right for the mood I described?",
+          },
+        ],
+      },
+      {
+        title: "Future Capabilities",
+        description:
+          "The agent architecture is designed to expand beyond lighting into a general-purpose home automation platform with additional tool types, knowledge-augmented scene generation, and deeper device integration.",
+        paragraphs: [
+          "The most immediate expansion is adding new tool types beyond lighting control. The LangChain @tool abstraction makes it straightforward to register additional tools that the agent can reason about and invoke. Climate control is a natural next step: a set_thermostat tool that accepts temperature targets, mode selection (heat, cool, auto), and zone targeting would let the agent coordinate lighting and climate in a single scene request like 'set up the living room for a cozy movie night' where lights dim to warm tones and the thermostat adjusts to a comfortable temperature. Media control tools for smart speakers, TVs, and streaming devices would extend this further, turning scene requests into multi-system orchestrations.",
+          "Scene knowledge augmentation through retrieval-augmented generation (RAG) would give the agent a structured memory of what works well. Currently, the agent relies entirely on the LLM's general knowledge about lighting design and the scene history for continuity. A RAG system would index successful scenes with their prompts, user feedback, and contextual metadata (time of day, season, activity type) and retrieve relevant examples when generating new scenes. This would make the agent better at reproducing preferred lighting styles, learning individual preferences over time, and making contextually appropriate decisions like warmer lighting in the evening or brighter task lighting during work hours.",
+          "A Model Context Protocol (MCP) server interface would expose LangHome's capabilities to external AI agents and tools. Instead of being limited to the Gradio chat interface, the lighting agent could be called by Claude, ChatGPT, or any MCP-compatible assistant as a tool. A user working in an AI coding assistant could say 'set my office lights to focus mode' and the assistant would invoke LangHome's MCP endpoint to plan and execute the scene. This composability is where the agent architecture becomes most valuable: the same capability-aware planning and device control logic works regardless of which system is initiating the request.",
+          "Automation rules would shift LangHome from a reactive tool into a proactive system. Rather than waiting for explicit user requests, the agent could respond to events: motion sensors triggering welcome lighting, time-based schedules for circadian-appropriate color temperatures, or occupancy-based energy management that dims or turns off lights in empty rooms. The Home Assistant event bus already supports these triggers, and the agent architecture could consume them as inputs alongside natural language requests. The interesting design challenge is balancing automated behavior with user control: the agent should be helpful without being unpredictable.",
+          "Voice interface integration would make the agent accessible without a screen. The current Gradio interface requires typing, which is appropriate for initial development but not for the natural use case of adjusting home lighting. A voice frontend using Whisper for speech-to-text, feeding into the same LightingAgent, and using text-to-speech for confirmation would create a hands-free experience. The streaming architecture already supports this pattern: the agent could confirm the plan verbally ('I will set the living room to warm gold at 40% brightness') and wait for a voice confirmation before executing.",
+        ],
+        assets: [
+          {
+            title: "Future LangHome architecture",
+            description:
+              "The expanded architecture with additional tool types, RAG-powered scene knowledge, MCP server interface, automation rules, and voice input.",
+            format: "diagram",
+            diagramId: "langhome-future",
+            align: "center",
+            bodyBelow:
+              "The future architecture maintains the same agent core but expands the tool surface, adds knowledge retrieval, and opens the system to external consumers through MCP. The key design property is that every new capability plugs into the existing planning-execution loop rather than requiring a new orchestration pattern.",
           },
         ],
       },
