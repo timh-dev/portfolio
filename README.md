@@ -1,4 +1,4 @@
-# Tim Holmes Portfolio
+# Portfolio
 
 Single-page portfolio site built with React, Vite, Tailwind CSS, and shadcn-style UI primitives. The site is configured for GitHub Pages deployment through GitHub Actions.
 
