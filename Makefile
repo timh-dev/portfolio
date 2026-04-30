@@ -1,23 +1,23 @@
 SHELL := /bin/sh
 
-.PHONY: setup install dev build preview lint clean doctor ci gh-deploy gh-runs gh-watch gh-sync-vars
+.PHONY: setup install dev build preview lint clean doctor ci gh-deploy gh-runs gh-watch gh-sync-vars vercel-deploy
 
 setup: install
 
 install:
-	npm install
+	pnpm install
 
 dev:
-	npm run dev -- --host
+	pnpm dev -- --host
 
 build:
-	npm run build
+	pnpm build
 
 preview:
-	npm run preview -- --host
+	pnpm preview -- --host
 
 lint:
-	npm run lint
+	pnpm lint
 
 ci: lint build
 
@@ -43,5 +43,9 @@ gh-sync-vars:
 	gh variable set VITE_GITHUB_URL --body "$$VITE_GITHUB_URL"; \
 	gh variable set VITE_ROLE --body "$$VITE_ROLE"
 
+vercel-deploy:
+	npx vercel build --prod
+	npx vercel deploy --prebuilt --prod
+
 clean:
-	rm -rf dist
+	rm -rf dist .vercel/output

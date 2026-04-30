@@ -5,3 +5,11 @@ dist
 .env
 .env.local
 .env.*.local
+
+# media
+*.mp4
+*.png
+*.jpg
+*.jpeg
+.vercel
+.env*.local
